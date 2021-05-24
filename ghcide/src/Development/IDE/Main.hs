@@ -46,6 +46,7 @@ import           Development.IDE.Core.Shake            (IdeState (shakeExtras),
 import           Development.IDE.Core.Tracing          (measureMemory)
 import           Development.IDE.Graph                 (action)
 import           Development.IDE.LSP.LanguageServer    (runLanguageServer)
+import           Development.IDE.LSP.Notifications
 import           Development.IDE.Plugin                (Plugin (pluginHandlers, pluginModifyDynflags, pluginRules))
 import           Development.IDE.Plugin.HLS            (asGhcIdePlugin)
 import qualified Development.IDE.Plugin.HLS.GhcIde     as Ghcide
@@ -58,7 +59,7 @@ import           Development.IDE.Types.Location        (NormalizedUri,
                                                         toNormalizedFilePath')
 import           Development.IDE.Types.Logger          (Logger (Logger))
 import           Development.IDE.Types.Options         (IdeGhcSession,
-                                                        IdeOptions (optCheckParents, optCheckProject, optReportProgress),
+                                                        IdeOptions (optCheckParents, optCheckProject, optReportProgress, optRunSubset),
                                                         clientSupportsProgress,
                                                         defaultIdeOptions,
                                                         optModifyDynFlags)
@@ -215,12 +216,18 @@ defaultMain Arguments{..} = do
                     setInitialDynFlags argsSessionLoadingOptions
                         `catchAny` (\e -> (hPutStrLn stderr $ "setInitialDynFlags: " ++ displayException e) >> pure Nothing)
 
+
                 sessionLoader <- loadSessionWithOptions argsSessionLoadingOptions $ fromMaybe dir rootPath
                 config <- LSP.runLspT env LSP.getConfig
                 let def_options = argsIdeOptions config sessionLoader
-                    options = def_options
+
+                -- disable runSubset if the client doesn't support watched files
+                runSubset <- (optRunSubset def_options &&) <$> LSP.runLspT env isWatchSupported
+
+                let options = def_options
                             { optReportProgress = clientSupportsProgress caps
                             , optModifyDynFlags = optModifyDynFlags def_options <> pluginModifyDynflags plugins
+                            , optRunSubset = runSubset
                             }
                     caps = LSP.resClientCapabilities env
                 initialise

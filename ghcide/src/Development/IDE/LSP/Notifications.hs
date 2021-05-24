@@ -9,6 +9,7 @@
 module Development.IDE.LSP.Notifications
     ( whenUriFile
     , descriptor
+    , isWatchSupported
     ) where
 
 import qualified Language.LSP.Server                   as LSP
@@ -37,7 +38,8 @@ import           Development.IDE.Core.FileStore        (resetFileStore,
 import           Development.IDE.Core.OfInterest
 import           Development.IDE.Core.RuleTypes        (GetClientSettings (..))
 import           Development.IDE.Types.Shake           (toKey)
-import           Ide.Plugin.Config                     (CheckParents (CheckOnClose))
+import           Ide.Plugin.Config                     (CheckParents (CheckOnClose),
+                                                        Config)
 import           Ide.Types
 
 whenUriFile :: Uri -> (NormalizedFilePath -> IO ()) -> IO ()
@@ -109,14 +111,7 @@ descriptor plId = (defaultPluginDescriptor plId) { pluginNotificationHandlers = 
       liftIO $ shakeSessionInit ide
 
       --------- Set up file watchers ------------------------------------------------------------------------
-      clientCapabilities <- LSP.getClientCapabilities
-      let watchSupported = case () of
-            _ | LSP.ClientCapabilities{_workspace} <- clientCapabilities
-              , Just LSP.WorkspaceClientCapabilities{_didChangeWatchedFiles} <- _workspace
-              , Just LSP.DidChangeWatchedFilesClientCapabilities{_dynamicRegistration} <- _didChangeWatchedFiles
-              , Just True <- _dynamicRegistration
-                -> True
-              | otherwise -> False
+      watchSupported <- isWatchSupported
       if watchSupported
       then do
         opts <- liftIO $ getIdeOptionsIO $ shakeExtras ide
@@ -144,3 +139,14 @@ descriptor plId = (defaultPluginDescriptor plId) { pluginNotificationHandlers = 
       else liftIO $ logDebug (ideLogger ide) "Warning: Client does not support watched files. Falling back to OS polling"
   ]
     }
+
+isWatchSupported :: LSP.LspT Config IO Bool
+isWatchSupported = do
+      clientCapabilities <- LSP.getClientCapabilities
+      pure $ case () of
+            _ | LSP.ClientCapabilities{_workspace} <- clientCapabilities
+              , Just LSP.WorkspaceClientCapabilities{_didChangeWatchedFiles} <- _workspace
+              , Just LSP.DidChangeWatchedFilesClientCapabilities{_dynamicRegistration} <- _didChangeWatchedFiles
+              , Just True <- _dynamicRegistration
+                -> True
+              | otherwise -> False

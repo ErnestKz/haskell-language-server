@@ -151,6 +151,11 @@ flag pragmas
   default:     True
   manual:      True
 
+flag prescedence
+  description: Enable explicit prescedence plugin
+  default:     True
+  manual:      True
+
 flag splice
   description: Enable splice plugin
   default:     True
@@ -238,6 +243,11 @@ common pragmas
     build-depends: hls-pragmas-plugin ^>= 1.0.0.0
     cpp-options: -Dpragmas
 
+common prescedence
+  if flag(prescedence) || flag(all-plugins)
+    build-depends: hls-explicit-prescedence-plugin ^>= 1.0.0.0
+    cpp-options: -Dprescedence
+
 common splice
   if flag(splice) || flag(all-plugins)
     build-depends: hls-splice-plugin ^>= 1.0.0.1
@@ -290,6 +300,7 @@ executable haskell-language-server
                     , ormolu
                     , stylishHaskell
                     , brittany
+                    , prescedence
 
   main-is:          Main.hs
   hs-source-dirs:   exe

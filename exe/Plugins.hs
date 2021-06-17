@@ -29,6 +29,8 @@ import           Ide.Plugin.Eval                   as Eval
 import           Ide.Plugin.ExplicitImports        as ExplicitImports
 #endif
 
+import           Ide.Plugin.ExplicitPrescedence    as ExplicitPrescedence
+
 #if refineImports
 import           Ide.Plugin.RefineImports          as RefineImports
 #endif
@@ -93,6 +95,7 @@ idePlugins includeExamples = pluginDescToIdePlugins allPlugins
                    then basePlugins ++ examplePlugins
                    else basePlugins
     basePlugins =
+      ExplicitPrescedence.descriptor  "explicit-prescedence" :
 #if pragmas
       Pragmas.descriptor  "pragmas" :
 #endif
